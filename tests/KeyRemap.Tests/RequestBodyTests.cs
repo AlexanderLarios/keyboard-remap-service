@@ -43,6 +43,7 @@ public class RequestBodyTests : ApiTestBase
     [InlineData("{\"mappings\":[{\"source\":null,\"target\":29}]}")]
     [InlineData("{\"mappings\":[{\"source\":99999999999,\"target\":29}]}")]
     [InlineData("not json")]
+    [InlineData("{\"mappings\":[null]}")]
     public async Task Malformed_body_is_invalid_body(string json)
     {
         var response = await PatchRawAsync(json);

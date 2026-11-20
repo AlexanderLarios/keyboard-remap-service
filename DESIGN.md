@@ -124,6 +124,7 @@ In this example A (0x04) emits Z (0x1D), and 4 (0x21) emits 2 (0x1F). Every key 
 | `204` | All entries valid and applied | None |
 | `400` | Malformed JSON, missing `mappings`, or any validation rule fails | Problem details with an `errors` array |
 | `404` | No keyboard with that name | Problem details |
+| `415` | `Content-Type` is not `application/json` | Problem details |
 
 Example `400` body:
 
@@ -173,7 +174,7 @@ A `PATCH` is applied only if every rule passes. All failures are collected and r
 
 | # | Rule | Error code | Why |
 | --- | --- | --- | --- |
-| V1 | Body is valid JSON with a `mappings` array, and every entry has `source` and `target` as JSON integers that fit a 32-bit integer. The array may be empty | `invalid_body` | An empty array asks for no change, which is not a mistake. A missing field, a string such as `"4"`, a fraction or `null` fails JSON binding before V2 can run, so it is reported here as one error with `index` null and `field` `body`. |
+| V1 | Body is valid JSON with a `mappings` array, and every entry has `source` and `target` as JSON integers that fit a 32-bit integer. The array may be empty | `invalid_body` | An empty array asks for no change, which is not a mistake. A missing field, a `null` entry, a string such as `"4"`, a fraction or a `null` value fails JSON binding before V2 can run, so it is reported here as one error with `index` null and `field` `body`. |
 | V2 | Each entry has integer `source` and `target` between 0 and 255 | `out_of_range` | HID codes are 8-bit. The request model uses `int` so that 256 gets this error, not a generic binding failure. |
 | V3 | `source` is a key on this keyboard | `unknown_key` | B7. |
 | V4 | `target` is a key on this keyboard | `unknown_key` | B8. |
@@ -322,6 +323,9 @@ Tests are split by layer: unit tests on the validator, and integration tests thr
 | Unit | Request with three different mistakes returns three errors | B9 |
 | Integration | `GET` on a fresh database returns 92 keys, none remapped | Seeding, P3 |
 | Integration | `PATCH` a two-key remap, then `GET` shows A→Z and 4→2 | Round trip |
+| Integration | Empty or non-JSON body, missing `mappings`, a `null` entry, or a missing, string, fractional, `null` or oversized `source` returns `400` with one `invalid_body` error | V1 |
+| Integration | An invalid entry returns problem details with the `errors` array | A6, B9 |
+| Integration | A body sent without `Content-Type: application/json` returns `415` | A7 |
 | Integration | A second `PATCH` with a different key keeps the first two | B1 |
 | Integration | A `PATCH` that changes an already-remapped key's target updates it | B1, upsert |
 | Integration | A self-map on a remapped key resets it, reads as not remapped, and leaves other keys remapped | B6, P3 |
@@ -393,6 +397,7 @@ Each entry records a change to a decision or to the design after the initial ver
 | 2026-11-19 | C4: test-runner packages `Microsoft.NET.Test.Sdk` and `xunit.runner.visualstudio` listed | `dotnet test` cannot run xUnit tests without them. |
 | 2026-11-19 | V1: a missing or non-integer `source` or `target` is `invalid_body`. Numbers sent as strings are rejected (A3). The framework's default binding error is replaced, and `MappingProblems` added to build both `400` bodies | Those inputs fail binding before V2 can run. ASP.NET Core accepts `"4"` as 4 by default, which A3 rules out, and every `400` should have the same shape. |
 | 2026-11-19 | Testing: temporary database per test rather than per test class | Tests then cannot see each other's mappings. |
+| 2026-11-19 | V1: a `null` entry in `mappings` is `invalid_body`. `PATCH` lists `415` for a body that is not `application/json`. Testing table lists the request-body tests | A `null` entry returned `500`. The `415` came from `[Consumes]` but was not documented. |
 
 ## References
 

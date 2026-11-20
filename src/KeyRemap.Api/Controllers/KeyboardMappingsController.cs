@@ -26,6 +26,12 @@ public sealed class KeyboardMappingsController(IKeyMappingService service) : Con
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Patch(string keyboardName, AssignMappingsRequest request, CancellationToken ct)
     {
+        // Model validation does not check the elements of a list, so a JSON null entry gets this far.
+        if (request.Mappings.Any(m => m is null))
+        {
+            return MappingProblems.InvalidBody();
+        }
+
         var entries = request.Mappings.Select(m => (m.Source, m.Target)).ToList();
         var result = await service.AssignMappingsAsync(keyboardName, entries, ct);
         return result.Outcome == MappingOutcome.Success ? NoContent() : ToProblem(result, keyboardName);
