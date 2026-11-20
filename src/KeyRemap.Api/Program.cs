@@ -1,4 +1,8 @@
+using System.Text.Json.Serialization;
+using KeyRemap.Api.Controllers;
 using KeyRemap.Api.Data;
+using KeyRemap.Api.Services;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,9 +12,15 @@ var connectionString = ResolveConnectionString(
         ?? throw new InvalidOperationException("Connection string 'KeyMappings' is not configured."),
     builder.Environment.ContentRootPath);
 
-builder.Services.AddControllers();
+// The web defaults accept numbers sent as strings; HID codes must be JSON integers (A3).
+builder.Services.AddControllers()
+    .AddJsonOptions(options => options.JsonSerializerOptions.NumberHandling = JsonNumberHandling.Strict);
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+    options.InvalidModelStateResponseFactory = _ => MappingProblems.InvalidBody());
+builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 builder.Services.AddSingleton<IKeyboardRepository>(new SqliteKeyboardRepository(connectionString));
+builder.Services.AddSingleton<IKeyMappingService, KeyMappingService>();
 
 var app = builder.Build();
 

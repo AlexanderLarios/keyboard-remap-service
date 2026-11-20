@@ -173,7 +173,7 @@ A `PATCH` is applied only if every rule passes. All failures are collected and r
 
 | # | Rule | Error code | Why |
 | --- | --- | --- | --- |
-| V1 | Body is valid JSON with a `mappings` array. The array may be empty | `invalid_body` | An empty array asks for no change, which is not a mistake. |
+| V1 | Body is valid JSON with a `mappings` array, and every entry has `source` and `target` as JSON integers that fit a 32-bit integer. The array may be empty | `invalid_body` | An empty array asks for no change, which is not a mistake. A missing field, a string such as `"4"`, a fraction or `null` fails JSON binding before V2 can run, so it is reported here as one error with `index` null and `field` `body`. |
 | V2 | Each entry has integer `source` and `target` between 0 and 255 | `out_of_range` | HID codes are 8-bit. The request model uses `int` so that 256 gets this error, not a generic binding failure. |
 | V3 | `source` is a key on this keyboard | `unknown_key` | B7. |
 | V4 | `target` is a key on this keyboard | `unknown_key` | B8. |
@@ -272,7 +272,7 @@ requests.http
 src/KeyRemap.Api/
   Program.cs
   appsettings.json
-  Controllers/KeyboardMappingsController.cs
+  Controllers/  KeyboardMappingsController, MappingProblems
   Contracts/    AssignMappingsRequest, MappingEntry, KeyboardMappingsResponse
   Domain/       Keyboard, HidKey, KeyMapping, MappingValidator, ValidationError
   Services/     IKeyMappingService, KeyMappingService
@@ -284,6 +284,7 @@ tests/KeyRemap.Tests/
 | Class | Responsibility | Knows about |
 | --- | --- | --- |
 | `KeyboardMappingsController` | Bind the request, call the service, turn its result into `200`, `204`, `400` or `404` | HTTP and the service interface |
+| `MappingProblems` | Build the `400` problem details body, for validation errors and for a body that fails binding | HTTP and `ValidationError` |
 | `KeyMappingService` | Load the keyboard, run the validator, call the repository | Domain types and the repository interface |
 | `MappingValidator` | Apply V2 to V5 to a request against a keyboard's key set and return all errors | Domain types only; no I/O |
 | `SqliteKeyboardRepository` | Find a keyboard by name, read all mappings, upsert mappings in a transaction, clear all mappings | SQL and `Microsoft.Data.Sqlite` |
@@ -292,7 +293,7 @@ tests/KeyRemap.Tests/
 
 A `PATCH` request passes through the layers in this order:
 
-1. The controller binds the JSON body to `AssignMappingsRequest`. A malformed body returns `400` from the framework.
+1. The controller binds the JSON body to `AssignMappingsRequest`. A body that fails binding returns `400` with one `invalid_body` error, in the same shape as validation errors (V1).
 2. The service asks the repository for the keyboard, by name, and its keys. No keyboard returns `404`.
 3. `MappingValidator` checks every entry. Any error returns `400` with the full list.
 4. The service passes the entries to the repository, which upserts them in one transaction.
@@ -390,6 +391,7 @@ Each entry records a change to a decision or to the design after the initial ver
 | 2026-11-19 | A2: the keyboard is addressed by its name, matched ignoring case. The `slug` column is dropped and `keyboards.name` uses `COLLATE NOCASE` | The directions give the keyboard name as the input. |
 | 2026-11-19 | B6, P3: a self-map is stored like any other mapping. `remapped` is derived by comparing target with source. The `CHECK (source_code <> target_code)` constraint and the service's split into resets and upserts are removed | One write path with no special case. A save overwrites the key's row, so storage stays bounded at 92 rows per keyboard. |
 | 2026-11-19 | C4: test-runner packages `Microsoft.NET.Test.Sdk` and `xunit.runner.visualstudio` listed | `dotnet test` cannot run xUnit tests without them. |
+| 2026-11-19 | V1: a missing or non-integer `source` or `target` is `invalid_body`. Numbers sent as strings are rejected (A3). The framework's default binding error is replaced, and `MappingProblems` added to build both `400` bodies | Those inputs fail binding before V2 can run. ASP.NET Core accepts `"4"` as 4 by default, which A3 rules out, and every `400` should have the same shape. |
 
 ## References
 
