@@ -1,0 +1,25 @@
+@base = http://localhost:5080/api/keyboards/Apex%20Pro%20Gen%203/mappings
+
+### Read all 92 keys
+GET {{base}}
+
+### Remap A to Z and 4 to 2
+PATCH {{base}}
+Content-Type: application/json
+
+{ "mappings": [ { "source": 4, "target": 29 }, { "source": 33, "target": 31 } ] }
+
+### Reset A to its default
+PATCH {{base}}
+Content-Type: application/json
+
+{ "mappings": [ { "source": 4, "target": 4 } ] }
+
+### Invalid: 45 (0x2D) is not a key on this keyboard
+PATCH {{base}}
+Content-Type: application/json
+
+{ "mappings": [ { "source": 45, "target": 4 } ] }
+
+### Reset every key
+DELETE {{base}}
