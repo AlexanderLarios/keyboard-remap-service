@@ -334,7 +334,7 @@ Tests are split by layer: unit tests on the validator, and integration tests thr
 | Integration | Unknown keyboard name returns `404` on all three verbs | A6 |
 | Integration | Mappings survive disposing the host and starting a new one on the same file | Persistence, idempotent seed |
 
-Integration tests use `WebApplicationFactory` with the connection string overridden to a unique temporary file per test class, deleted on dispose.
+Integration tests use `WebApplicationFactory` with the connection string overridden to a unique temporary file per test, deleted on dispose.
 
 ## Running
 
@@ -392,6 +392,7 @@ Each entry records a change to a decision or to the design after the initial ver
 | 2026-11-19 | B6, P3: a self-map is stored like any other mapping. `remapped` is derived by comparing target with source. The `CHECK (source_code <> target_code)` constraint and the service's split into resets and upserts are removed | One write path with no special case. A save overwrites the key's row, so storage stays bounded at 92 rows per keyboard. |
 | 2026-11-19 | C4: test-runner packages `Microsoft.NET.Test.Sdk` and `xunit.runner.visualstudio` listed | `dotnet test` cannot run xUnit tests without them. |
 | 2026-11-19 | V1: a missing or non-integer `source` or `target` is `invalid_body`. Numbers sent as strings are rejected (A3). The framework's default binding error is replaced, and `MappingProblems` added to build both `400` bodies | Those inputs fail binding before V2 can run. ASP.NET Core accepts `"4"` as 4 by default, which A3 rules out, and every `400` should have the same shape. |
+| 2026-11-19 | Testing: temporary database per test rather than per test class | Tests then cannot see each other's mappings. |
 
 ## References
 
